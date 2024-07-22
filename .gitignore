@@ -1,3 +1,4 @@
 logs/
 bitcoin/
 miner/
+node_modules/

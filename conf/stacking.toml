@@ -1,0 +1,13 @@
+[node]
+url = "http://127.0.0.1"
+port = 20443
+
+[[stackers]]
+secret_key = "7287ba251d44a4d3fd9276c88ce34c5c52a038955511cccaf77e61068649c17801"
+stx_address = "ST1SJ3DTE5DN7X54YDH5D64R3BCB6A2AG2ZQ8YPD5"
+btc_address = "mr1iPkD9N3RJZZxXRk7xF9d36gffa6exNC"
+
+[[stackers]]
+secret_key = "530d9f61984c888536871c6573073bdfc0058896dc1adfe9a6a10dfacadc209101"
+stx_address = "ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG"
+btc_address = "muYdXKmX9bByAueDe6KFfHd5Ff1gdN9ErG"

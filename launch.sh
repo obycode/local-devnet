@@ -59,7 +59,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Get insert the private key into the stacks miner's config
-sed -i "" -e "s|^seed = \".*\"|seed = \"$PRIVATE_KEY\"|g" $WORKING_DIR/miner.toml
+sed -i "" -e "s|^seed = \".*\"|seed = \"$PRIVATE_KEY\"|g" $WORKING_DIR/conf/miner.toml
 
 # Generate 101 blocks to fund the miner
 bitcoin-cli -regtest -rpcuser=devnet -rpcpassword=devnet -rpcconnect=127.0.0.1 -rpcport=18443 generatetoaddress 101 $BTC_ADDRESS 2>&1 >> $WORKING_DIR/logs/bitcoind.log
@@ -73,9 +73,9 @@ echo "Miner funded."
 # Start the signers
 echo "Starting signers..."
 
-$STACKS_CORE_BIN/stacks-signer run --config $WORKING_DIR/signer1.toml &> $WORKING_DIR/logs/signer1.log &
+$STACKS_CORE_BIN/stacks-signer run --config $WORKING_DIR/conf/signer1.toml &> $WORKING_DIR/logs/signer1.log &
 SIGNER1_PID=$!
-$STACKS_CORE_BIN/stacks-signer run --config $WORKING_DIR/signer2.toml &> $WORKING_DIR/logs/signer2.log &
+$STACKS_CORE_BIN/stacks-signer run --config $WORKING_DIR/conf/signer2.toml &> $WORKING_DIR/logs/signer2.log &
 SIGNER2_PID=$!
 
 # ------------------------------
@@ -88,15 +88,55 @@ rm -rf ./miner/*
 # Start the stacks miner
 echo "Starting stacks miner..."
 
-$STACKS_CORE_BIN/stacks-node start --config $WORKING_DIR/miner.toml &> $WORKING_DIR/logs/miner.log &
+$STACKS_CORE_BIN/stacks-node start --config $WORKING_DIR/conf/miner.toml &> $WORKING_DIR/logs/miner.log &
 MINER_PID=$!
+
+echo "Stacks miner started and listening at http://localhost:20443"
 
 # ------------------------------
 # INTERACTIVE MODE
 # ------------------------------
-echo "Press 'q' to exit, 'i' to get the current block heights, 'n' to mine a bitcoin block."
+
+print_help() {
+  echo "Commands:"
+  echo "  q - Quit and terminate all processes"
+  echo "  i - Display current burn and stacks block heights"
+  echo "  n - Mine a single new block"
+  echo "  m - Mine multiple blocks with a pause between each"
+  echo "  h - Display this help message"
+}
+
+print_block_info() {
+  BURN_BLOCK_HEIGHT=$(bitcoin-cli -regtest -rpcuser=devnet -rpcpassword=devnet -rpcconnect=127.0.0.1 -rpcport=18443 getblockcount)
+  echo " ℹ️ Current burn block height: $BURN_BLOCK_HEIGHT"
+  STACKS_BLOCK_HEIGHT=$(curl -s http://localhost:20443/v2/info | jq -r .stacks_tip_height)
+  echo " ℹ️ Current stacks block height: $STACKS_BLOCK_HEIGHT"
+}
+
+mine_and_check_cycle() {
+  # Mine a new block
+  bitcoin-cli -regtest -rpcuser=devnet -rpcpassword=devnet -rpcconnect=127.0.0.1 -rpcport=18443 generatetoaddress 1 $BTC_ADDRESS > /dev/null
+
+  # Get the current block height
+  BURN_BLOCK_HEIGHT=$(bitcoin-cli -regtest -rpcuser=devnet -rpcpassword=devnet -rpcconnect=127.0.0.1 -rpcport=18443 getblockcount)
+
+  # Check if it is the 5th block in a reward cycle
+  if (( BURN_BLOCK_HEIGHT % 20 == 5 )); then
+    echo " ℹ️ Submitting signing transactions..."
+    # Submit signing transactions
+    # Replace with your actual signing transaction commands
+    # e.g., stacks-cli transaction sign ...
+  fi
+
+  # Display block heights
+  display_block_heights
+}
+
+print_help
 while true; do
+  echo -n "❯ "  # Prompt symbol indicating it's waiting for input
   read -r -n 1 key
+  echo  # Move to a new line after reading the key
   if [[ $key == "q" ]]; then
     echo " Exiting..."
     kill $MINER_PID
@@ -105,12 +145,33 @@ while true; do
     kill $BITCOIND_PID
     break
   elif [[ $key == "i" ]]; then
-    BURN_BLOCK_HEIGHT=$(bitcoin-cli -regtest -rpcuser=devnet -rpcpassword=devnet -rpcconnect=127.0.0.1 -rpcport=18443 getblockcount)
-    echo " Current burn block height: $BURN_BLOCK_HEIGHT"
-    STACKS_BLOCK_HEIGHT=$(curl -s http://localhost:20443/v2/info | jq -r .stacks_tip_height)
-    echo "  Current stacks block height: $STACKS_BLOCK_HEIGHT"
+    print_block_info
   elif [[ $key == "n" ]]; then
-    echo " Mining a new block..."
+    echo "  → Mining a new block..."
     bitcoin-cli -regtest -rpcuser=devnet -rpcpassword=devnet -rpcconnect=127.0.0.1 -rpcport=18443 generatetoaddress 1 $BTC_ADDRESS 2>&1 >> $WORKING_DIR/logs/bitcoind.log
+    print_block_info
+  elif [[ $key == "m" ]]; then
+    echo -n " ❯❯ Enter the number of blocks to mine: "
+    read -r number_of_blocks
+    if [[ $number_of_blocks =~ ^[0-9]+$ ]]; then
+      echo -n " ❯❯ Enter the number of seconds to pause between blocks: "
+      read -r sleep_time
+      if [[ $sleep_time =~ ^[0-9]+$ ]]; then
+        for ((i=1; i<$number_of_blocks; i++)); do
+          echo " ├ Mining block $((i)) of $number_of_blocks..."
+          bitcoin-cli -regtest -rpcuser=devnet -rpcpassword=devnet -rpcconnect=127.0.0.1 -rpcport=18443 generatetoaddress 1 $BTC_ADDRESS > /dev/null
+          sleep $sleep_time
+        done
+        echo " └ Mining block $((i)) of $number_of_blocks..."
+        bitcoin-cli -regtest -rpcuser=devnet -rpcpassword=devnet -rpcconnect=127.0.0.1 -rpcport=18443 generatetoaddress 1 $BTC_ADDRESS > /dev/null
+        print_block_info
+      else
+        echo " ✗ Invalid sleep time. Please enter a valid number of seconds."
+      fi
+    else
+      echo " ✗ Invalid number of blocks. Please enter a valid number."
+    fi
+  elif [[ $key == "h" ]]; then
+    print_help
   fi
 done
