@@ -34,7 +34,7 @@ echo "Bitcoin address: $BTC_ADDRESS"
 # Start bitcoind
 echo "Starting bitcoind..."
 
-bitcoind -conf=$WORKING_DIR/bitcoin.conf -datadir=$DATA_DIR/bitcoin &> $LOG_DIR/bitcoind.log &
+bitcoind -conf=$CONF_DIR/bitcoin.conf -datadir=$DATA_DIR/bitcoin &> $LOG_DIR/bitcoind.log &
 BITCOIND_PID=$!
 
 echo "Waiting for bitcoind to be ready..."
