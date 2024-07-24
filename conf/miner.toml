@@ -1,11 +1,12 @@
 [node]
-working_dir = "./miner"
+working_dir = "./data/miner"
 rpc_bind = "0.0.0.0:20443"
 p2p_bind = "0.0.0.0:20444"
 data_url = "http://127.0.0.1:20443"
 p2p_address = "127.0.0.1:20443"
 miner = true
-seed = "2156a63a2559c43f15282f4cdd824c164d71e5b53f4a32764cad444a5d065b1401"
+stacker = true
+seed = "f7e6154ad82e9aba953012fd1970ae3e9323e80be280874d1a75ab563b4cdde601"
 local_peer_seed = "3b68e410cc7f9b8bae76f2f2991b69ecd0627c95da22a904065dfb2a73d0585f01"
 pox_sync_sample_secs = 0
 wait_time_for_blocks = 0
@@ -76,6 +77,12 @@ retry_count = 255
 include_data_events = false
 events_keys = ["stackerdb", "block_proposal", "burn_blocks"]
 
+[[events_observer]]
+endpoint = "127.0.0.1:30003"
+retry_count = 255
+include_data_events = false
+events_keys = ["stackerdb", "block_proposal", "burn_blocks"]
+
 [burnchain]
 chain = "bitcoin"
 mode = "nakamoto-neon"
@@ -129,4 +136,4 @@ start_height = 105
 
 [[burnchain.epochs]]
 epoch_name = "3.0"
-start_height = 121
+start_height = 131

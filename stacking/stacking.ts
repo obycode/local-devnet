@@ -19,8 +19,10 @@ interface Stacker {
   secret_key: string;
   stx_address: string;
   btc_address: string;
+  amount: number;
 }
 
+const START_HEIGHT = 100;
 const POX_PREPARE_LENGTH = 5;
 const POX_REWARD_LENGTH = 20;
 const STACKING_CYCLES = 10;
@@ -64,7 +66,7 @@ const accounts = conf.stackers.map((stacker: Stacker, index: number) => {
     btcAddr: publicKeyToBtcAddress(pubKey),
     signerPrivKey: signerPrivKey,
     signerPubKey: signerPubKey,
-    targetSlots: index + 1,
+    stackAmount: stacker.amount,
     index,
     client: new StackingClient(stxAddress, network),
   };
@@ -74,7 +76,7 @@ type Account = (typeof accounts)[0];
 
 function burnBlockToRewardCycle(burnBlock: number) {
   const cycleLength = BigInt(POX_REWARD_LENGTH);
-  return Number(BigInt(burnBlock) / cycleLength) + 1;
+  return Number(BigInt(burnBlock - START_HEIGHT) / cycleLength);
 }
 
 async function run() {
@@ -149,7 +151,12 @@ async function run() {
 async function stackStx(poxInfo: PoxInfo, account: Account, balance: bigint) {
   // Bump min threshold by 50% to avoid getting stuck if threshold increases
   const minStx = Math.floor(poxInfo.next_cycle.min_threshold_ustx * 1.5);
-  const amountToStx = BigInt(minStx) * BigInt(account.targetSlots);
+  const amountToStx = account.stackAmount;
+  if (amountToStx < minStx) {
+    throw new Error(
+      `Stack-stx amount is below the minimum threshold (amount=${amountToStx}, min=${minStx})`
+    );
+  }
   if (amountToStx > balance) {
     throw new Error(
       `Insufficient balance to stack-stx (amount=${amountToStx}, balance=${balance})`
