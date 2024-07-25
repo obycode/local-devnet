@@ -113,8 +113,12 @@ print_help() {
 print_block_info() {
   BURN_BLOCK_HEIGHT=$(bitcoin-cli -regtest -rpcuser=devnet -rpcpassword=devnet -rpcconnect=127.0.0.1 -rpcport=18443 getblockcount)
   echo " ℹ️ Current burn block height: $BURN_BLOCK_HEIGHT"
-  STACKS_BLOCK_HEIGHT=$(curl -s http://localhost:20443/v2/info | jq -r .stacks_tip_height)
-  echo " ℹ️ Current stacks block height: $STACKS_BLOCK_HEIGHT"
+  V2_INFO=$(curl -s --max-time 2 http://localhost:20443/v2/info)
+  if [ $? -ne 0 ]; then
+    echo " ❌ Error: Failed to retrieve stacks block height within 2 seconds"
+  else
+    echo " ℹ️ Current stacks block height: $(echo "$V2_INFO" | jq -r .stacks_tip_height)"
+  fi
 }
 
 mine_and_check_cycle() {
